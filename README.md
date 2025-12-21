@@ -28,3 +28,5 @@ Then input this command:
 It will automatically to open a website interface.
 
 Link for Demo video (v1) : https://youtu.be/9oV5MaUIw2U
+
+Now solving the navigation part...
