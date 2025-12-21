@@ -26,3 +26,5 @@ Then input this command:
    ./startup_robot.sh
 
 It will automatically to open a website interface.
+
+Link for Demo video (v1) : https://youtu.be/9oV5MaUIw2U
