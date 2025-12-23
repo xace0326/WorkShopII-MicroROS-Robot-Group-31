@@ -13,23 +13,19 @@ from mcp.client.stdio import stdio_client
 # ==========================================
 # CONFIGURATION
 # ==========================================
-GOOGLE_API_KEY = "Paste your own api key"
+GOOGLE_API_KEY = "paste your own api key"
 SERVER_SCRIPT = "/home/yahboom/my_robot_project/ros-mcp-server/server.py"
 
-# --- LOCATIONS WITH DIRECTION ---
-# Format: [X, Y, Orientation_Z, Orientation_W]
-# If you only provide [X, Y], it defaults to facing East (0.0, 1.0)
 LOCATIONS = {
-    "kitchen": [-0.47, -0.52, 0.0, 1.0],           # Facing East
-    "living_room": [0.38, 1.29, 0.383, 0.924],     # Facing North-East
-    "bedroom": [1.95, 1.40, -0.924, 0.383],        # Facing South-West
-    "home": [0.03, -0.7, 0.7076, 0.7065]          # Your Specific Direction (North)
+    "kitchen": [1.5, 0.5],
+    "living_room": [0.0, 0.0],
+    "bedroom": [2.0, -1.0]
 }
 # ==========================================
 
 st.set_page_config(page_title="YahBoom AI Vision", page_icon="👁️", layout="wide")
 
-# --- SIDEBAR ---
+# --- SIDEBAR (HISTORY CONTROL) ---
 with st.sidebar:
     st.title("Control Panel")
     if st.button("🗑️ Clear Chat History", type="primary"):
@@ -42,9 +38,9 @@ st.title("👁️ YahBoom AI Vision Commander")
 # Initialize Chat
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.messages.append({"role": "assistant", "content": "Visual Systems Online. Ask: 'What do you see?' or 'Go to kitchen'."})
+    st.session_state.messages.append({"role": "assistant", "content": "Visual Systems Online. Ask: 'What do you see?', 'Take a picture', or 'Open Camera'."})
 
-# Display Chat History
+# Display Chat History (This runs every time the script refreshes)
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -66,17 +62,28 @@ async def process_command(user_text):
             def battery_smart_wrapper(): return {"action": "battery"}
             def beep_wrapper(): return {"action": "beep"}
             def drive_wrapper(meters: float): return {"action": "drive", "dist": meters}
-            def turn_wrapper(direction: str, degrees: float = 90.0): return {"action": "turn", "dir": direction, "deg": degrees}
-            def camera_wrapper(): return {"action": "launch_camera"}
-            def close_camera_wrapper(): return {"action": "kill_camera"}
-            def vision_wrapper(mode: str): return {"action": "vision", "mode": mode}
+            def turn_wrapper(direction: str): return {"action": "turn", "dir": direction}
+            
+            def camera_wrapper(): 
+                """Opens the live video window."""
+                return {"action": "launch_camera"}
+            
+            def close_camera_wrapper():
+                """Closes the live video window."""
+                return {"action": "kill_camera"}
+
+            def vision_wrapper(mode: str):
+                """
+                Used when user asks to 'see', 'look', 'take picture', or 'describe'.
+                mode: 'describe' (analyze image) or 'capture' (just show it).
+                """
+                return {"action": "vision", "mode": mode}
 
             # --- CONFIGURE GEMINI ---
             model = genai.GenerativeModel(
                 model_name='gemini-2.0-flash',
-                # Removed recalibrate_wrapper from list
                 tools=[move_smart_wrapper, battery_smart_wrapper, beep_wrapper, drive_wrapper, turn_wrapper, camera_wrapper, close_camera_wrapper, vision_wrapper],
-                system_instruction="You are a robot assistant. Use the provided tools to control the robot. If the user says 'Turn around', use 180 degrees."
+                system_instruction="You are a robot with eyes. Use vision_wrapper to see."
             )
             chat = model.start_chat(enable_automatic_function_calling=False)
 
@@ -88,38 +95,20 @@ async def process_command(user_text):
                     fname = part.function_call.name
                     st.toast(f"⚙️ Running: {fname}")
                     
-                    # --- NAVIGATION (UPDATED FOR DIRECTION) ---
+                    # --- NAVIGATION ---
                     if fname == "move_smart_wrapper":
                         room = part.function_call.args['room_name']
                         if room in LOCATIONS:
-                            data = LOCATIONS[room]
-                            # Extract X, Y
-                            target_x = float(data[0])
-                            target_y = float(data[1])
-                            
-                            # Extract Orientation (Default to 0.0, 1.0 if missing)
-                            target_z = float(data[2]) if len(data) > 2 else 0.0
-                            target_w = float(data[3]) if len(data) > 3 else 1.0
-                            
-                            st.info(f"📍 Moving to {room} (Facing: z={target_z}, w={target_w})")
-                            
-                            goal = {
-                                'header': {'frame_id': 'map'}, 
-                                'pose': {
-                                    'position': {'x': target_x, 'y': target_y, 'z': 0.0}, 
-                                    'orientation': {'x': 0.0, 'y': 0.0, 'z': target_z, 'w': target_w}
-                                }
-                            }
-                            await session.call_tool("publish_once", arguments={"topic": "/goal_pose", "msg_type": "geometry_msgs/msg/PoseStamped", "msg": goal})
+                            coords = LOCATIONS[room]
+                            goal = {'pose': {'header': {'frame_id': 'map'}, 'pose': {'position': {'x': float(coords[0]), 'y': float(coords[1]), 'z': 0.0}, 'orientation': {'w': 1.0}}}}
+                            await session.call_tool("send_action_goal", arguments={"action_name": "/navigate_to_pose", "action_type": "nav2_msgs/action/NavigateToPose", "goal": goal})
                             tool_out = f"Moving to {room}."
                         else: tool_out = "Unknown room."
-
-                    # --- BEEP ---
+                    
                     elif fname == "beep_wrapper":
                         await session.call_tool("publish_once", arguments={"topic": "/beep", "msg_type": "std_msgs/msg/UInt16", "msg": {"data": 200}})
                         tool_out = "Beeped."
 
-                    # --- DRIVE ---
                     elif fname == "drive_wrapper":
                         meters = float(part.function_call.args['meters'])
                         speed = 0.2
@@ -130,26 +119,13 @@ async def process_command(user_text):
                         await session.call_tool("publish_for_durations", arguments={"topic": "/cmd_vel", "msg_type": "geometry_msgs/msg/Twist", "messages": [msg_go, msg_stop], "durations": [duration, 1.0]})
                         tool_out = "Driven."
 
-                    # --- TURN ---
                     elif fname == "turn_wrapper":
                         direction = part.function_call.args['direction']
-                        degrees = float(part.function_call.args.get('degrees', 90.0))
                         speed = 0.5
-                        radians = degrees * (3.14159 / 180.0)
-                        duration = radians / speed
-                        z_speed = speed if direction.lower() == 'left' else -speed
-                        msg_spin = {"linear": {"x": 0.0, "y": 0.0, "z": 0.0}, "angular": {"x": 0.0, "y": 0.0, "z": z_speed}}
+                        msg_spin = {"linear": {"x": 0.0, "y": 0.0, "z": 0.0}, "angular": {"x": 0.0, "y": 0.0, "z": speed if direction == 'left' else -speed}}
                         msg_stop = {"linear": {"x": 0.0, "y": 0.0, "z": 0.0}, "angular": {"x": 0.0, "y": 0.0, "z": 0.0}}
-                        await session.call_tool("publish_for_durations", arguments={"topic": "/cmd_vel", "msg_type": "geometry_msgs/msg/Twist", "messages": [msg_spin, msg_stop], "durations": [duration, 1.0]})
-                        tool_out = f"Turned {degrees} degrees."
-
-                    # --- BATTERY ---
-                    elif fname == "battery_smart_wrapper":
-                        try:
-                            result = await session.call_tool("subscribe_for_duration", arguments={"topic": "/battery", "msg_type": "std_msgs/msg/UInt16", "duration": 3.0})
-                            tool_out = f"Battery Level: {result.content[0].text}"
-                        except Exception as e:
-                            tool_out = f"Error: {e}"
+                        await session.call_tool("publish_for_durations", arguments={"topic": "/cmd_vel", "msg_type": "geometry_msgs/msg/Twist", "messages": [msg_spin, msg_stop], "durations": [3.0, 1.0]})
+                        tool_out = "Turned."
 
                     # --- CAMERA CONTROL ---
                     elif fname == "camera_wrapper":
@@ -162,23 +138,32 @@ async def process_command(user_text):
                         os.system("pkill -f smart_camera.py")
                         tool_out = "Live Video Closed."
 
-                    # --- VISION ---
+                    # --- VISION (Snapshot) ---
                     elif fname == "vision_wrapper":
                         mode = part.function_call.args.get('mode', 'capture')
-                        st.toast("🚫 Pausing video stream...")
-                        os.system("pkill -f smart_camera.py")
-                        time.sleep(1.0) 
+                        
+                        # NO AUTO-CLOSE. Parallel run.
                         st.info("📸 Taking picture...")
+                        
                         try:
-                            result = subprocess.run(["python3", "take_photo.py"], capture_output=True, text=True, timeout=8)
+                            result = subprocess.run(
+                                ["python3", "take_photo.py"], 
+                                capture_output=True, text=True, timeout=8
+                            )
+                            
                             output_text = result.stdout.strip()
+                            
                             if "SUCCESS:" in output_text:
                                 file_path = output_text.split("SUCCESS:")[1].strip()
+                                
                                 if os.path.exists(file_path):
                                     img = PILImage.open(file_path)
+                                    # We don't use st.image here directly anymore to avoid "Ghosting"
+                                    # We save it to session state immediately below
+                                    
                                     analysis_text = ""
                                     if mode == "describe":
-                                        st.info("🧠 Analyzing...")
+                                        st.info("🧠 Analyzing image...")
                                         vision_model = genai.GenerativeModel('gemini-2.0-flash')
                                         vision_response = vision_model.generate_content(["Describe this image briefly.", img])
                                         analysis_text = f" I see: {vision_response.text}"
@@ -186,36 +171,56 @@ async def process_command(user_text):
                                     response_text = f"Snapshot captured.{analysis_text}"
                                     tool_out = response_text
                                     
+                                    # Add to history NOW so it appears after rerun
                                     st.session_state.messages.append({
                                         "role": "assistant", 
                                         "content": response_text,
                                         "image": img
                                     })
-                                    return ""
-                                else: tool_out = "Error: File not found."
-                            else: tool_out = f"Camera failed: {output_text}"
-                        except Exception as e: tool_out = f"Vision Error: {e}"
+                                    # Return empty string to prevent double-printing text in the loop below
+                                    return "" 
+                                else:
+                                    tool_out = "Error: File not found."
+                            else:
+                                tool_out = f"Camera failed: {output_text}"
+                                
+                        except Exception as e:
+                            tool_out = f"Vision Error: {e}"
 
-                    if fname != "battery_smart_wrapper":
-                        func_res = await chat.send_message_async({"role": "function", "parts": [{"function_response": {"name": fname, "response": {"result": tool_out}}}]})
-                        final_reply = func_res.text
+                    # Send result back
+                    func_res = await chat.send_message_async(
+                        {"role": "function", "parts": [{"function_response": {"name": fname, "response": {"result": tool_out}}}]}
+                    )
+                    final_reply = func_res.text
             
             if not final_reply: final_reply = response.text
             return final_reply
 
-# --- INPUT HANDLING ---
+# --- USER INPUT HANDLING ---
 if prompt := st.chat_input("Command..."):
+    # 1. Show User Message
     with st.chat_message("user"):
         st.markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
+
+    # 2. Process & Show Assistant Message
     with st.chat_message("assistant"):
         with st.spinner("Processing..."):
             try:
                 reply = asyncio.run(process_command(prompt))
+                
+                # Only append if reply is not empty (Vision tool handles its own append)
                 if reply:
                     st.markdown(reply)
                     st.session_state.messages.append({"role": "assistant", "content": reply})
-                time.sleep(0.5)
+                
+                # --- THE GHOST TEXT FIX ---
+                # This forces the page to reload immediately.
+                # The chat history will be redrawn from 'st.session_state.messages',
+                # making the font solid and permanent.
                 st.rerun()
+                
             except Exception as e:
-                if "TaskGroup" not in str(e): st.error(f"Error: {e}")
+                # Filter cleanup errors
+                if "TaskGroup" not in str(e): 
+                    st.error(f"Error: {e}")

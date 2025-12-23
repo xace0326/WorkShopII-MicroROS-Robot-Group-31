@@ -7,7 +7,7 @@ from mcp.client.stdio import stdio_client
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
-GOOGLE_API_KEY = "Paste Your own api key"
+GOOGLE_API_KEY = "Paste your own api key"
 
 # YOUR MAP COORDINATES (Update these with your real numbers from RViz!)
 LOCATIONS = {

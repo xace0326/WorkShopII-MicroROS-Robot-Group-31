@@ -38,22 +38,28 @@ echo "=============================================="
 mkdir -p $LOG_DIR
 
 # 1. HARDWARE (Bringup)
-echo "1️⃣  Starting Hardware (Bringup)..."
+echo "1.  Starting Hardware (Bringup)..."
 bash -c "source /opt/ros/humble/setup.bash && source ~/yahboomcar_ws/install/setup.bash && ros2 launch yahboomcar_bringup yahboomcar_bringup_launch.py" > $LOG_DIR/1_bringup.log 2>&1 &
-sleep 10
+sleep 5
 
 # 3. BRIDGE
-echo "3️⃣  Starting ROS Bridge..."
+echo "2.  Starting ROS Bridge..."
 bash -c "source /opt/ros/humble/setup.bash && ros2 launch rosbridge_server rosbridge_websocket_launch.xml" > $LOG_DIR/2_bridge.log 2>&1 &
 sleep 3
 
 # 4. NAVIGATION
-echo "4️⃣  Starting Navigation..."
+echo "3.  Starting Navigation..."
 bash -c "source ~/yahboomcar_ws/install/setup.bash && ros2 launch yahboomcar_nav navigation_dwb_launch.py map:=/home/yahboom/my_robot_project/maps/my_new_map.yaml" > $LOG_DIR/3_nav.log 2>&1 &
 sleep 5
 
+
+# --- NEW: AUTO LOCALIZE ---
+echo "📍 Setting Initial Pose..."
+bash -c "source ~/yahboomcar_ws/install/setup.bash && python3 ~/my_robot_project/auto_localize.py"
+# --------------------------
+
 # 5. AI INTERFACE
-echo "5️⃣  Starting AI Web Interface..."
+echo "4.  Starting AI Web Interface..."
 bash -c "source ~/yahboomcar_ws/install/setup.bash && cd $PROJECT_DIR && streamlit run web_interface.py" > $LOG_DIR/4_web.log 2>&1 &
 
 echo ""
