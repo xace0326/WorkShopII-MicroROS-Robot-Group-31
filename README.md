@@ -55,6 +55,7 @@ pip3 install streamlit mcp google-generativeai pillow opencv-python gTTS
 cd ros-mcp-server
 pip3 install .
 ```
+**For more information about MCP Server 👉 [ROS MCP Server](https://github.com/robotmcp/ros-mcp-server)**
 
 4. **Configure API Key:**
 Open "mcp_client.py" and paste your Google Gemini API Key.
