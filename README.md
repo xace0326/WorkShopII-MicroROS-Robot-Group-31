@@ -41,8 +41,8 @@ This project relies on the underlying MicroROS and Camera drivers provided by Ya
 ## 🚀 Installation & Setup
 1. **Clone this repository:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/YahBoom-MCP-Robot.git
-cd YahBoom-MCP-Robot
+git clone https://github.com/xace0326/WorkShopII-MicroROS-Robot-Group-31.git
+cd WorkShopII-MicroROS-Robot-Group-31
 ```
 
 2. **Install Dependencies:**
