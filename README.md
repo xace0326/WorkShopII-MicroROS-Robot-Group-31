@@ -36,21 +36,25 @@ This project relies on the underlying MicroROS and Camera drivers provided by Ya
 ├── mcp_client.py      	   # Main Streamlit App (MCP Client)
 ├── startup_robot.sh       # One-click startup script
 └── README.md              # This file
+```
 
 🚀 Installation & Setup
 1. Clone this repository:
 ```bash
 git clone https://github.com/YOUR_USERNAME/YahBoom-MCP-Robot.git
 cd YahBoom-MCP-Robot
+```
 
 2. Install Dependencies:
 ```bash
 pip3 install streamlit mcp google-generativeai pillow opencv-python gTTS
+```
 
 3. Install the MCP Server:
 ```bash
 cd ros-mcp-server
 pip3 install .
+```
 
 4. Configure API Key:
 Open "mcp_client.py" and paste your Google Gemini API Key.
@@ -61,21 +65,24 @@ Because this system involves hardware, we recommend running it in 3 separate ter
 Terminal 1: The Hardware Link
 ```bash
 sh ~/start_agent_computer.sh
+```
 # If stuck, press the Reset button on the robot.
 
 Terminal 2: The Camera Driver
 ```bash
 sh ~/start_Camera_computer.sh
+```
 # Then run the ros node in another tab if not automated
 # ros2 run yahboom_esp32_camera sub_img
 
 Terminal 3: The AI System
 ```bash
 ./startup_robot.sh
-
+```
 Wait for the URL to appear, then open it in your browser.
 
 🛠️ Configuration Notes
+```
 Map: If you move the robot to a new room, you must re-map using Cartographer/Gmapping and update the coordinates in mcp_client.py and auto_localize.py.
 Navigation Tuning: If you navigation has problem, you try to change the parameters at the file params/nav2_params.yaml.
 
