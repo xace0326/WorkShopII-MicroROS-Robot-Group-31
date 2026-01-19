@@ -30,8 +30,8 @@ This project relies on the underlying MicroROS and Camera drivers provided by Ya
 ## 📂 Project Structure
 ```text
 ├── maps/                  # SLAM Maps (.yaml/.pgm)
-├── params/                # Custom Nav2 Params (Ice Mode)
-├── ros-mcp-server/        # Generic MCP Server (Patched for timeouts)
+├── modified_system_files  # The modified system file from YahBoom
+├── ros-mcp-server/        # Generic MCP Server (FAST-MCP-SERVER)
 ├── utils/                 # Helper scripts (auto_localize, take_photo)
 ├── mcp_client.py      	   # Main Streamlit App (MCP Client)
 ├── startup_robot.sh       # One-click startup script
