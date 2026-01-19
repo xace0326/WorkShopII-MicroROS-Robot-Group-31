@@ -6,10 +6,10 @@ import time
 # ==========================================
 # CONFIGURATION: YOUR HOME COORDINATES
 # ==========================================
-HOME_X = -0.11677692180624813      # Replace with your X
-HOME_Y = -0.6994236937413175      # Replace with your Y
-HOME_Z = 0.707658791935663      # Replace with Orientation Z
-HOME_W = 0.7065543391673128      # Replace with Orientation W
+HOME_X = -0.14188287161276036     # Replace with your X
+HOME_Y = -0.008236395118605177     # Replace with your Y
+HOME_Z = 0.9981620026326784     # Replace with Orientation Z
+HOME_W = 0.06060211630232779    # Replace with Orientation W
 # ==========================================
 
 class InitialPosePublisher(Node):

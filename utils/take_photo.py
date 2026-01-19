@@ -7,6 +7,7 @@ import numpy as np
 import time
 import os
 import datetime
+import sys
 
 # --- CONFIGURATION ---
 SAVE_DIR = "/home/yahboom/my_robot_project/snapshots"
@@ -17,20 +18,23 @@ class SnapshotNode(Node):
         super().__init__('snapshot_taker')
         self.image_received = False
         
-        # QoS for WiFi Camera
+        # QoS for WiFi Camera (Best Effort is REQUIRED)
         qos_policy = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, depth=10)
+        
+        # Subscribe to RAW image (not compressed, since we use manual decode)
+        # Note: If your robot uses /image_raw/compressed, we need a different decoder.
+        # Based on your previous logs, you use /esp32_img which is RAW.
         self.create_subscription(Image, '/esp32_img', self.callback, qos_policy)
 
     def callback(self, msg):
         try:
-            # 1. Decode
+            # 1. Decode Raw Image manually (Avoids cv_bridge crash)
+            # ROS Image is just a byte array. We reshape it.
             np_arr = np.frombuffer(msg.data, dtype=np.uint8).reshape(msg.height, msg.width, 3)
             
-            # 2. FLIP THE IMAGE (MATCH THIS TO YOUR LIVE WINDOW!)
-            # 0  = Vertical Flip
-            # 1  = Horizontal Flip (Mirror)
-            # -1 = Both (180 Rotation)
-            frame = cv2.flip(np_arr, 1) # <--- CHANGE THIS NUMBER IF NEEDED
+            # 2. Flip if needed (Match your live window!)
+            # 1 = Horizontal Flip
+            frame = cv2.flip(np_arr, 1)
             
             # 3. Create Unique Filename
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -43,22 +47,26 @@ class SnapshotNode(Node):
                 
             cv2.imwrite(full_path, frame)
             
-            # 5. Output Success for Website
+            # 5. Output Success
             print(f"SUCCESS:{full_path}")
+            sys.stdout.flush() # Force print to appear
             self.image_received = True
             
         except Exception as e:
+            # Don't crash, just print error
             print(f"FAIL: {e}")
             self.image_received = True
 
 def main():
-    rclpy.init()
+    if not rclpy.ok():
+        rclpy.init()
+        
     node = SnapshotNode()
     
     start_time = time.time()
     while not node.image_received:
         rclpy.spin_once(node, timeout_sec=0.1)
-        if time.time() - start_time > 3.0:
+        if time.time() - start_time > 5.0: # Wait 5 seconds max
             print("TIMEOUT")
             break
             

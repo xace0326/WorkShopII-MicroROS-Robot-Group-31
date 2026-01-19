@@ -37,16 +37,19 @@ mkdir -p $LOG_DIR
 # 1. HARDWARE (Bringup)
 echo "1️⃣️.  Starting Hardware (Bringup)..."
 bash -c "source /opt/ros/humble/setup.bash && source ~/yahboomcar_ws/install/setup.bash && ros2 launch yahboomcar_bringup yahboomcar_bringup_launch.py" > $LOG_DIR/1_bringup.log 2>&1 &
-sleep 3
+sleep 5
 
 # 3. BRIDGE
 echo "2️⃣️.  Starting ROS Bridge..."
 bash -c "source /opt/ros/humble/setup.bash && ros2 launch rosbridge_server rosbridge_websocket_launch.xml" > $LOG_DIR/2_bridge.log 2>&1 &
-sleep 3
+sleep 5
+
+echo "setting parameters"
+bash -c "source params_file:=/home/yahboom/my_robot_project/params/dwb_nav_params.yaml"
 
 # 4. NAVIGATION
 echo "3️⃣️.  Starting Navigation..."
-bash -c "source ~/yahboomcar_ws/install/setup.bash && ros2 launch yahboomcar_nav navigation_dwb_launch.py map:=/home/yahboom/my_robot_project/maps/my_new_map.yaml" > $LOG_DIR/3_nav.log 2>&1 &
+bash -c "source ~/yahboomcar_ws/install/setup.bash && ros2 launch yahboomcar_nav navigation_dwb_launch.py" > $LOG_DIR/3_nav.log 2>&1 &
 sleep 5
 
 
